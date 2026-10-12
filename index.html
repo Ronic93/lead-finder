@@ -1,0 +1,49 @@
+<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lead Finder · ArtByRonic</title><meta name="robots" content="noindex">
+<style>
+:root{--bg:#0f0d12;--card:#1a1720;--line:#2e2936;--gold:#d6a84f;--rust:#c2582f;--txt:#eee8f2;--mut:#9a92a6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 -apple-system,system-ui,sans-serif}
+header{padding:16px 14px 6px}h1{margin:0;font:600 22px Georgia,serif;color:var(--gold)}.sub{color:var(--mut);font-size:12px}
+.f{position:sticky;top:0;background:var(--bg);padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;z-index:5;border-bottom:1px solid var(--line)}
+select,input{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px;font-size:14px;flex:1;min-width:30%}
+main{padding:10px 14px 60px}.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 12px}
+.top{display:flex;gap:10px;align-items:flex-start}.sc{min-width:46px;height:46px;border-radius:50%;border:2px solid var(--gold);display:grid;place-items:center;font-weight:700;color:var(--gold)}
+.n{font-weight:600;font-size:16px}.m{color:var(--mut);font-size:12.5px}.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin:3px 3px 0 0;color:var(--mut)}
+.tag.g{color:var(--gold);border-color:#6b5427}img.s{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#000}
+details{margin-top:8px}summary{color:var(--gold);cursor:pointer;font-size:14px}pre{white-space:pre-wrap;background:#0b0a0e;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:12.5px}
+button{background:var(--gold);color:#140f05;border:0;border-radius:8px;padding:7px 11px;font-weight:600;font-size:13px}button.o{background:none;color:var(--txt);border:1px solid var(--line)}
+.st{display:flex;gap:5px;margin-top:9px}.st button{flex:1;padding:6px 2px;font-size:12px}.st button.on{background:var(--rust);color:#fff}
+a{color:var(--gold)}.warn{font-size:11.5px;color:var(--mut);margin-top:4px}
+</style></head><body>
+<header><h1>Lead Finder</h1><div class="sub" id="upd"></div></header>
+<div class="f"><select id="ni"><option value="">Alle niches</option></select><select id="cc"><option value="">NL + BE</option><option>NL</option><option>BE</option></select>
+<select id="ms"><option value="40">Score ≥ 40</option><option value="60">≥ 60</option><option value="75">≥ 75</option><option value="0">Alles</option></select>
+<select id="sf"><option value="open">Nieuw + interesse</option><option value="">Alle statussen</option><option>new</option><option>interested</option><option>pitched</option><option>skip</option></select>
+<input id="q" placeholder="Zoek merk…"></div>
+<main id="L"></main>
+<script>
+const S=JSON.parse(localStorage.lfStatus||"{}"),save=()=>localStorage.lfStatus=JSON.stringify(S);let D;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+fetch("data/leads.json?"+Date.now()).then(r=>r.json()).then(d=>{D=d;upd.textContent=`Bijgewerkt ${d.updated.replace("T"," ")} · ${d.leads.length} adverteerders · alleen drafts, niets wordt verstuurd`;
+[...new Set(d.leads.map(l=>l.niche))].sort().forEach(n=>ni.add(new Option(n,n)));draw()});
+["ni","cc","ms","sf","q"].forEach(i=>document.getElementById(i).oninput=draw);
+function cp(b,t){navigator.clipboard.writeText(t).then(()=>{b.textContent="✓ Gekopieerd";setTimeout(()=>b.textContent=b.dataset.l,1400)})}
+function draw(){const q=document.getElementById("q").value.toLowerCase();
+const r=D.leads.filter(l=>(!ni.value||l.niche==ni.value)&&(!cc.value||l.countries.includes(cc.value))&&l.score>=+ms.value&&(!q||l.name.toLowerCase().includes(q))&&
+(sf.value==""||(sf.value=="open"?["new","interested"].includes(S[l.key]||"new"):(S[l.key]||"new")==sf.value)));
+L.innerHTML=r.length?"":"<p class=m>Geen leads met deze filters.</p>";
+r.slice(0,150).forEach(l=>{const st=S[l.key]||"new",c=l.contact||{},s=(l.samples||[])[0]||{};const e=document.createElement("div");e.className="c";
+e.innerHTML=`<div class=top><div class=sc>${l.score}</div><div style="flex:1;min-width:0"><div class=n>${esc(l.name)}</div>
+<div class=m>${esc(l.niche)} · ${l.countries.join("/")} · ${l.ads} actieve ad${l.ads>1?"s":""} (${l.video_ads} video)${l.google_ads?` · ${l.google_ads} Google-ads`:""}${l.oldest?` · sinds ${l.oldest}`:""}</div>
+<div>${(l.why||[]).map(w=>`<span class="tag g">${esc(w)}</span>`).join("")}${l.stale?'<span class=tag>niet meer gezien</span>':""}</div></div>
+${s.img?`<img class=s loading=lazy src="${esc(s.img)}" onerror="this.remove()">`:""}</div>
+${l.observation?`<p style="margin:8px 0 0">${esc(l.observation)}</p>`:""}
+<div class=m style="margin-top:6px">${l.site?`<a href="https://${esc(l.site)}" target=_blank>${esc(l.site)}</a> · `:""}<a href="${esc(l.library)}" target=_blank>Ad Library</a>${s.link?` · <a href="${esc(s.link)}" target=_blank>voorbeeld-ad</a>`:""}
+${c.instagram?` · <a href="https://instagram.com/${esc(c.instagram)}" target=_blank>@${esc(c.instagram)}</a>`:""}${c.email?` · ${esc(c.email)}`:""}${c.contact_url?` · <a href="${esc(c.contact_url)}" target=_blank>contact</a>`:""}</div>
+${s.text?`<div class=warn>“${esc(s.text.slice(0,160))}”</div>`:""}
+${l.concept?`<details><summary>Concept + Seedance prompt</summary><p>${esc(l.concept)}</p><pre>${esc(l.prompt)}</pre><button data-l="Kopieer prompt">Kopieer prompt</button></details>
+<details><summary>Pitch-draft (NL)</summary><pre>${esc(l.pitch)}</pre><button data-l="Kopieer pitch">Kopieer pitch</button><div class=warn>Draft – zelf checken en versturen.</div></details>`:""}
+<div class=st>${["new","interested","pitched","skip"].map(x=>`<button class="o ${x==st?"on":""}" data-s="${x}">${{new:"Nieuw",interested:"Interesse",pitched:"Gepitcht",skip:"Skip"}[x]}</button>`).join("")}</div>`;
+e.querySelectorAll("button[data-l]").forEach(b=>b.onclick=()=>cp(b,b.dataset.l.includes("prompt")?l.prompt:l.pitch));
+e.querySelectorAll("button[data-s]").forEach(b=>b.onclick=()=>{S[l.key]=b.dataset.s;save();draw()});L.appendChild(e)})}
+</script></body></html>
