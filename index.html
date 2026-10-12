@@ -9,7 +9,7 @@ select,input{background:var(--card);color:var(--txt);border:1px solid var(--line
 main{padding:10px 14px 60px}.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 12px}
 .top{display:flex;gap:10px;align-items:flex-start}.sc{min-width:46px;height:46px;border-radius:50%;border:2px solid var(--gold);display:grid;place-items:center;font-weight:700;color:var(--gold)}
 .n{font-weight:600;font-size:16px}.m{color:var(--mut);font-size:12.5px}.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin:3px 3px 0 0;color:var(--mut)}
-.tag.g{color:var(--gold);border-color:#6b5427}img.s{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#000}
+.tag.ai{color:#9fd8ff;border-color:#2f5d7a;font-weight:600}.tag.ai.p{opacity:.7}.tag.g{color:var(--gold);border-color:#6b5427}img.s{width:72px;height:72px;object-fit:cover;border-radius:8px;background:#000}
 details{margin-top:8px}summary{color:var(--gold);cursor:pointer;font-size:14px}pre{white-space:pre-wrap;background:#0b0a0e;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:12.5px}
 button{background:var(--gold);color:#140f05;border:0;border-radius:8px;padding:7px 11px;font-weight:600;font-size:13px}button.o{background:none;color:var(--txt);border:1px solid var(--line)}
 .st{display:flex;gap:5px;margin-top:9px}.st button{flex:1;padding:6px 2px;font-size:12px}.st button.on{background:var(--rust);color:#fff}
@@ -19,28 +19,28 @@ a{color:var(--gold)}.warn{font-size:11.5px;color:var(--mut);margin-top:4px}
 <div class="f"><select id="ni"><option value="">Alle niches</option></select><select id="cc"><option value="">NL + BE</option><option>NL</option><option>BE</option></select>
 <select id="ms"><option value="40">Score ≥ 40</option><option value="60">≥ 60</option><option value="75">≥ 75</option><option value="0">Alles</option></select>
 <select id="sf"><option value="open">Nieuw + interesse</option><option value="">Alle statussen</option><option>new</option><option>interested</option><option>pitched</option><option>skip</option></select>
-<input id="q" placeholder="Zoek merk…"></div>
+<select id="ai"><option value="">AI: alles</option><option value="yes">Gebruikt al AI</option><option value="confirmed">AI bevestigd</option><option value="none">Geen AI</option></select><input id="q" placeholder="Zoek merk…"></div>
 <main id="L"></main>
 <script>
 const S=JSON.parse(localStorage.lfStatus||"{}"),save=()=>localStorage.lfStatus=JSON.stringify(S);let D;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
 fetch("data/leads.json?"+Date.now()).then(r=>r.json()).then(d=>{D=d;upd.textContent=`Bijgewerkt ${d.updated.replace("T"," ")} · ${d.leads.length} adverteerders · alleen drafts, niets wordt verstuurd`;
 [...new Set(d.leads.map(l=>l.niche))].sort().forEach(n=>ni.add(new Option(n,n)));draw()});
-["ni","cc","ms","sf","q"].forEach(i=>document.getElementById(i).oninput=draw);
+["ni","cc","ms","sf","ai","q"].forEach(i=>document.getElementById(i).oninput=draw);
 function cp(b,t){navigator.clipboard.writeText(t).then(()=>{b.textContent="✓ Gekopieerd";setTimeout(()=>b.textContent=b.dataset.l,1400)})}
 function draw(){const q=document.getElementById("q").value.toLowerCase();
-const r=D.leads.filter(l=>(!ni.value||l.niche==ni.value)&&(!cc.value||l.countries.includes(cc.value))&&l.score>=+ms.value&&(!q||l.name.toLowerCase().includes(q))&&
+const r=D.leads.filter(l=>(!ni.value||l.niche==ni.value)&&(!cc.value||l.countries.includes(cc.value))&&l.score>=+ms.value&&(!ai.value||(ai.value=="yes"?(l.ai_signal||"none")!="none":(l.ai_signal||"none")==ai.value))&&(!q||l.name.toLowerCase().includes(q))&&
 (sf.value==""||(sf.value=="open"?["new","interested"].includes(S[l.key]||"new"):(S[l.key]||"new")==sf.value)));
 L.innerHTML=r.length?"":"<p class=m>Geen leads met deze filters.</p>";
 r.slice(0,150).forEach(l=>{const st=S[l.key]||"new",c=l.contact||{},s=(l.samples||[])[0]||{};const e=document.createElement("div");e.className="c";
-e.innerHTML=`<div class=top><div class=sc>${l.score}</div><div style="flex:1;min-width:0"><div class=n>${esc(l.name)}</div>
+e.innerHTML=`<div class=top><div class=sc>${l.score}</div><div style="flex:1;min-width:0"><div class=n>${esc(l.name)}${l.ai_signal=="confirmed"?' <span class="tag ai">AI ✓</span>':l.ai_signal=="possible"?' <span class="tag ai p">AI ?</span>':""}</div>
 <div class=m>${esc(l.niche)} · ${l.countries.join("/")} · ${l.ads} actieve ad${l.ads>1?"s":""} (${l.video_ads} video)${l.google_ads?` · ${l.google_ads} Google-ads`:""}${l.oldest?` · sinds ${l.oldest}`:""}</div>
 <div>${(l.why||[]).map(w=>`<span class="tag g">${esc(w)}</span>`).join("")}${l.stale?'<span class=tag>niet meer gezien</span>':""}</div></div>
 ${s.img?`<img class=s loading=lazy src="${esc(s.img)}" onerror="this.remove()">`:""}</div>
 ${l.observation?`<p style="margin:8px 0 0">${esc(l.observation)}</p>`:""}
 <div class=m style="margin-top:6px">${l.site?`<a href="https://${esc(l.site)}" target=_blank>${esc(l.site)}</a> · `:""}<a href="${esc(l.library)}" target=_blank>Ad Library</a>${s.link?` · <a href="${esc(s.link)}" target=_blank>voorbeeld-ad</a>`:""}
 ${c.instagram?` · <a href="https://instagram.com/${esc(c.instagram)}" target=_blank>@${esc(c.instagram)}</a>`:""}${c.email?` · ${esc(c.email)}`:""}${c.contact_url?` · <a href="${esc(c.contact_url)}" target=_blank>contact</a>`:""}</div>
-${s.text?`<div class=warn>“${esc(s.text.slice(0,160))}”</div>`:""}
+${l.ai_evidence?`<div class=warn>🤖 ${esc(l.ai_evidence)}</div>`:""}${s.text?`<div class=warn>“${esc(s.text.slice(0,160))}”</div>`:""}
 ${l.concept?`<details><summary>Concept + Seedance prompt</summary><p>${esc(l.concept)}</p><pre>${esc(l.prompt)}</pre><button data-l="Kopieer prompt">Kopieer prompt</button></details>
 <details><summary>Pitch-draft (NL)</summary><pre>${esc(l.pitch)}</pre><button data-l="Kopieer pitch">Kopieer pitch</button><div class=warn>Draft – zelf checken en versturen.</div></details>`:""}
 <div class=st>${["new","interested","pitched","skip"].map(x=>`<button class="o ${x==st?"on":""}" data-s="${x}">${{new:"Nieuw",interested:"Interesse",pitched:"Gepitcht",skip:"Skip"}[x]}</button>`).join("")}</div>`;

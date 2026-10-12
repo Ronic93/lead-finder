@@ -15,6 +15,12 @@ NICHES={
  "interior":["interieur","woonaccessoires","home decor"],
  "webshop":["webshop handgemaakt","conceptstore"],
 }
+AIQ={"fashion":["AI model kleding","AI fashion"],"beauty":["AI gegenereerd skincare"],"jewelry":["AI sieraden"],"haircare":["AI haar"],"perfume":["AI parfum"],"interior":["AI interieur"],"webshop":["made with AI","AI video","AI campagne","AI gegenereerd"]}
+AI_LABEL=re.compile(r"AI info|AI-info|Made with AI|Gemaakt met AI|Digitally created or altered|Digitaal (gemaakt|aangemaakt|gecreëerd) of (aangepast|bewerkt)|AI-gegenereerd label",re.I)
+AI_STRONG=re.compile(r"AI[- ]generated|AI[- ]gegenereerd|gegenereerd (met|door) AI|gemaakt met AI|made with AI|met AI gemaakt|(beeld|beelden|foto.?s|afbeelding) (zijn |is )?(met|door) AI|artificial intelligence|kunstmatige intelligentie|AI[- ]model|virtual model|virtueel model|AI[- ](video|campagne|campaign|beeld|foto|shoot)",re.I)
+AI_WEAK=re.compile(r"\bAI\b|[Aa]vatar|\bA\.I\.")
+OFFNICHE=re.compile(r"\bapp\b|play\.google|apps\.apple|doubleclick|website bouw|AI[- ]tool|AI video|leergeld|telecom|proximus|motor|biker|helm|auto|fiets|e-bike|scooter|tuin|gereedschap|bouw|supplement|vape|e-sigaret|hond|kat|huisdier|vis(sen|gerei)|camping|airco|zonnepan|loodgiet|schoonmaak|verzeker|software|saas|crm|vacature|makelaar|tandarts|dieet|afvallen|eiwit|gym|fitness",re.I)
+FIT=re.compile(r"sierad|jewel|ring|ketting|oorbel|armband|parfum|perfume|geur|fragrance|skin|huid|serum|beauty|cosmet|haar|hair|jurk|dress|mode|fashion|kleding|collectie|collection|tas|bag|interieur|interior|home|wonen|decor|vaas|kaars|linnen|zijde|silk|vintage|boutique|conceptstore",re.I)
 BIG={"zara","h&m","hm","zalando","bol","bol.com","douglas","ici paris xl","rituals","kruidvat","etos","ikea","action","primark","nike","adidas","shein","temu","hema","wehkamp","otto","about you","sephora","loreal","l'oréal","pandora","swarovski","rosefield","lidl","aldi","albert heijn","jumbo","coolblue","mango","c&a","only","vero moda","jysk","leen bakker","xenos","kwantum","lush","the body shop","nivea","garnier","dove","isabel marant","gucci","prada"}
 OFF=re.compile(r"alibaba|catawiki|auction|veiling|deals|marktplaats|vinted|amazon|goud(aankoop|inkoop)|inkoop|casino|crypto|lening|hypothe|vacature|webinar|cursus|coach|dokter|kliniek|tandarts|gemeente|partij",re.I)
 def chrome(url,budget=15000):
@@ -49,7 +55,8 @@ def meta_search(q,cc):
     mv=re.search(r"(\d+) ads\s*use this creative",txt.replace("\n"," "))
     out.append(dict(id=lid,name=name,page=page,site=dom(ext[0]) if ext else "",start=st.group(1) if st else "",
       video=bool(vids),img=(vids[0].get("poster") if vids else (imgs[-1] if imgs else "")),text=body,versions=int(mv.group(1)) if mv else 1,
-      link=f"https://www.facebook.com/ads/library/?id={lid}",kw=q,cc=cc))
+      link=f"https://www.facebook.com/ads/library/?id={lid}",kw=q,cc=cc,
+      ai_label=(AI_LABEL.search(txt) or [None])[0], ai_strong=(AI_STRONG.search(body) or [None])[0], ai_weak=(AI_WEAK.search(body) or [None])[0]))
   return out
 def google_count(d,cc):
   try:
@@ -89,6 +96,11 @@ def score(a):
   if a.get("google"): s+=5; why.append(f"ook {a['google']} Google-ads")
   if a["contact"].get("email") or a["contact"].get("instagram"): s+=5
   if not a["site"] or re.search(r"instagram|facebook|tiktok|etsy|linktr",a["site"]): s-=25; why.append("geen eigen webshop")
+  blob=a["name"]+" "+a["site"]+" "+a["sample_text"]
+  if OFFNICHE.search(blob) and not re.search(r"sierad|jewel|parfum|skincare|jurk",blob,re.I): s-=60; why.append("buiten niche ("+OFFNICHE.search(blob)[0]+")")
+  elif FIT.search(blob): s+=3
+  else: s-=10; why.append("niche-fit onzeker")
+  if re.search(r"\.ai$|typeform|turboscribe|cinely|humanable|hulc|holo|agency|werkenbij|xpeng|promoview|fashn|vovv|scanner|runway|strato|visionary",(a["site"] or "")+" "+a["low_name"],re.I) or re.search(r"(Try|Create|Make|Build|Maak) .{0,30}AI|AI[- ](tool|software|movie)",a["sample_text"]): s-=50; why.append("AI-tool/dienst, geen merk")
   if a["low_name"] in BIG: s-=60; why.append("groot merk")
   if OFF.search(a["name"]+" "+a["sample_text"]): s-=40; why.append("past niet bij esthetiek")
   return max(0,min(100,s)),why
@@ -101,7 +113,7 @@ CONC={
  "interior":("het interieur droomt","A {brand} piece stands alone in an empty moonlit conservatory; vines climb it, the walls dissolve into night sky, a model in an editorial gown sits down as everything settles","the room grows around the object"),
  "webshop":("het product als kunstobject","A {brand} product placed on a marble pedestal inside a moonlit greenhouse, surrounded by floating petals; a model in a rust-to-navy gown reaches out and the product glows","petals orbit the product"),
 }
-def gen(a):
+def gen(a,ai="none"):
   key,scene,trans=CONC[a["niche"]]; b=a["name"]
   obs=f"{b} draait {a['ads']} actieve Meta-ad(s) in {'/'.join(a['countries'])}"+(", allemaal statisch beeld" if a["video_ads"]==0 else f", waarvan {a['video_ads']} video")+(f", sinds {a['oldest']:%b %Y}" if a["oldest"] else "")+"."
   concept=f"9:16 – '{key}': {scene.format(brand=b)}. Eindigt op logo + product."
@@ -125,11 +137,25 @@ Zal ik een gratis 15-seconden concept voor jullie maken? Mijn werk: instagram.co
 
 Groet,
 Ronic"""
+  if ai!="none":
+    obs+=" Ze gebruiken al AI in hun ads"+(" (bevestigd)." if ai=="confirmed" else " (mogelijk).")
+    concept=f"9:16 upgrade – AI-wereld voor {b}: een vast, herkenbaar personage (zelfde gezicht, styling en kleurpalet in elke video) in een surreale maanverlichte kas-wereld; {scene.format(brand=b).split(';')[0]}. Serie-opzet: elke ad een nieuwe 'aflevering' in dezelfde wereld."
+    prompt=prompt.replace("[Style]","[Character consistency] same recurring muse in every shot: identical face, hair, styling and palette; reference image locked.\n[Style]")
+    pitch=f"""Hoi {b}-team,
+
+Leuk om te zien dat jullie al met AI-beeld werken in jullie ads – dat doen nog weinig merken. Ik ben Ronic (ArtByRonic) en maak AI-video's in een surrealistische fashion-editorial stijl, 9:16 voor Reels en TikTok.
+
+Waar ik jullie mee kan helpen is de volgende stap: filmischer beeld, een eigen herkenbare stijl in plaats van 'standaard AI', en een vast personage dat in elke video hetzelfde blijft – zodat jullie ads als één campagnewereld voelen. Idee voor {b}: {key}, als serie in één droomwereld.
+
+Zal ik een gratis 15-seconden concept maken? Mijn werk: instagram.com/artbyronic
+
+Groet,
+Ronic"""
   return obs,concept,prompt,pitch
 def main():
   quick="--quick" in sys.argv
   old={l["key"]:l for l in json.load(open(DATA))["leads"]} if os.path.exists(DATA) else {}
-  jobs=[(n,k,cc) for n,ks in NICHES.items() for k in (ks[:1] if quick else ks) for cc in ("NL","BE")]
+  jobs=[(n,k,cc) for n,ks in NICHES.items() for k in (ks[:1] if quick else ks)+AIQ[n] for cc in ("NL","BE")]
   ads=[]; src={"meta_ok":0,"meta_fail":0}
   with cf.ThreadPoolExecutor(2) as ex:
     fut={ex.submit(meta_search,k,cc):(n,k,cc) for n,k,cc in jobs}
@@ -140,9 +166,11 @@ def main():
   adv={}
   for x in ads:
     key=(x["site"] or x["page"] or x["name"]).lower()
-    a=adv.setdefault(key,dict(key=key,name=x["name"],low_name=x["name"].lower(),page=x["page"],site=x["site"],niche=x["niche"],ids=set(),video_ids=set(),countries=set(),dates=[],samples=[],kws=set()))
+    a=adv.setdefault(key,dict(key=key,name=x["name"],low_name=x["name"].lower(),page=x["page"],site=x["site"],niche=x["niche"],ids=set(),video_ids=set(),countries=set(),ai=[],dates=[],samples=[],kws=set()))
     a["ids"].add(x["id"]); a["countries"].add(x["cc"]); a["kws"].add(x["kw"])
     if x["video"]: a["video_ids"].add(x["id"])
+    for lvl,k in (("confirmed","ai_label"),("confirmed","ai_strong"),("possible","ai_weak")):
+      if x.get(k): a["ai"].append((lvl,f'{"label" if k=="ai_label" else "advertekst"} "{x[k]}" in ad {x["id"]}: {x["text"][:90]}')); break
     if x["start"]: a["dates"].append(datetime.datetime.strptime(x["start"],"%b %d, %Y").date())
     if len(a["samples"])<3 and x["id"] not in [s["id"] for s in a["samples"]]: a["samples"].append({k:x[k] for k in("id","text","img","link","video","start")})
     a["site"]=a["site"] or x["site"]; a["page"]=a["page"] or x["page"]
@@ -166,9 +194,9 @@ def main():
     o=old.get(a["key"],{})
     r=dict(key=a["key"],name=a["name"],site=a["site"],page=a["page"],niche=a["niche"],countries=a["countries"],ads=a["ads"],video_ads=a["video_ads"],
       oldest=str(a["oldest"] or ""),newest=str(a["newest"] or ""),samples=a["samples"],keywords=sorted(a["kws"]),google_ads=a["google"],contact=a["contact"],
-      score=a["score"],why=a["why"],first_seen=o.get("first_seen",now),last_seen=now,
+      ai_signal=("confirmed" if any(l=="confirmed" for l,_ in a["ai"]) else "possible" if a["ai"] else "none"),ai_evidence=" | ".join(e for _,e in sorted(a["ai"])[:2]),score=a["score"],why=a["why"],first_seen=o.get("first_seen",now),last_seen=now,
       library=f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country={a['countries'][0]}&q={urllib.parse.quote(a['name'])}&search_type=keyword_unordered")
-    if i<40 and a["score"]>=40: r["observation"],r["concept"],r["prompt"],r["pitch"]=gen(a)
+    if (i<40 and a["score"]>=40) or (r["ai_signal"]!="none" and a["score"]>=30): r["observation"],r["concept"],r["prompt"],r["pitch"]=gen(a,r["ai_signal"])
     out.append(r)
   for k,o in old.items():
     if k not in adv: o["stale"]=True; out.append(o)
