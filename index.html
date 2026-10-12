@@ -24,8 +24,8 @@ a{color:var(--gold)}.warn{font-size:11.5px;color:var(--mut);margin-top:4px}
 <script>
 const S=JSON.parse(localStorage.lfStatus||"{}"),save=()=>localStorage.lfStatus=JSON.stringify(S);let D;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
-const P=new URLSearchParams(location.search);if(P.get("ai"))setTimeout(()=>{ai.value=P.get("ai");ms.value="0";draw()},0);fetch("data/leads.json?"+Date.now()).then(r=>r.json()).then(d=>{D=d;upd.textContent=`Bijgewerkt ${d.updated.replace("T"," ")} · ${d.leads.length} adverteerders · alleen drafts, niets wordt verstuurd`;
-[...new Set(d.leads.map(l=>l.niche))].sort().forEach(n=>ni.add(new Option(n,n)));draw()});
+const P=new URLSearchParams(location.search);fetch("data/leads.json?"+Date.now()).then(r=>r.json()).then(d=>{D=d;upd.textContent=`Bijgewerkt ${d.updated.replace("T"," ")} · ${d.leads.length} adverteerders · alleen drafts, niets wordt verstuurd`;
+[...new Set(d.leads.map(l=>l.niche))].sort().forEach(n=>ni.add(new Option(n,n)));if(P.get("ai")){ai.value=P.get("ai");ms.value="0"}draw()});
 ["ni","cc","ms","sf","ai","q"].forEach(i=>document.getElementById(i).oninput=draw);
 function cp(b,t){navigator.clipboard.writeText(t).then(()=>{b.textContent="✓ Gekopieerd";setTimeout(()=>b.textContent=b.dataset.l,1400)})}
 function draw(){const q=document.getElementById("q").value.toLowerCase();
@@ -45,5 +45,5 @@ ${l.concept?`<details><summary>Concept + Seedance prompt</summary><p>${esc(l.con
 <details><summary>Pitch-draft (NL)</summary><pre>${esc(l.pitch)}</pre><button data-l="Kopieer pitch">Kopieer pitch</button><div class=warn>Draft – zelf checken en versturen.</div></details>`:""}
 <div class=st>${["new","interested","pitched","skip"].map(x=>`<button class="o ${x==st?"on":""}" data-s="${x}">${{new:"Nieuw",interested:"Interesse",pitched:"Gepitcht",skip:"Skip"}[x]}</button>`).join("")}</div>`;
 e.querySelectorAll("button[data-l]").forEach(b=>b.onclick=()=>cp(b,b.dataset.l.includes("prompt")?l.prompt:l.pitch));
-e.querySelectorAll("button[data-s]").forEach(b=>b.onclick=()=>{S[l.key]=b.dataset.s;save();draw()});L.appendChild(e)})}
+e.querySelectorAll("button[data-s]").forEach(b=>b.onclick=()=>{S[l.key]=b.dataset.s;save();if(P.get("ai")){ai.value=P.get("ai");ms.value="0"}draw()});L.appendChild(e)})}
 </script></body></html>
